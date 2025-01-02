@@ -44,16 +44,18 @@ int main(int argc, const char **argv) {
     return 1;
   }
 
-  double *window = calloc(window_sz, sizeof(double));
-  if (!window) {
-    fprintf(stderr, "Failed to allocate window memory\n");
-    return 1;
-  }
-
   FILE *value_file = fopen(filename, "r");
   if (!value_file) {
     perror("could not open value file");
-    free(window);
+    return 1;
+  }
+
+  double *window = calloc(window_sz, sizeof(double));
+  if (!window) {
+    fprintf(stderr, "Failed to allocate window memory\n");
+    if (fclose(value_file) != 0)
+      perror("could not close value file");
+
     return 1;
   }
 
@@ -63,6 +65,7 @@ int main(int argc, const char **argv) {
 
   if (fclose(value_file) != 0) {
     perror("could not close value file");
+    free(window);
     return 1;
   }
 
