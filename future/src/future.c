@@ -3,15 +3,15 @@
 #include <stdlib.h>
 #include <string.h>
 
-static inline int print_usage(const char *prog_name) {
-  printf("Usage: %s <filename> [--window N (default: 50)]\n", prog_name);
+static int print_usage(const char *prog_name) {
+  fprintf(stderr, "Usage: %s <filename> [--window N (default: 50)]\n",
+          prog_name);
   return 1;
 }
 
 int main(int argc, const char **argv) {
-  if (argc < 2 || argc > 4) {
+  if (argc < 2 || argc > 4)
     return print_usage(argv[0]);
-  }
 
   const char *filename = NULL;
   unsigned long long window_sz = 50;
@@ -23,9 +23,8 @@ int main(int argc, const char **argv) {
       char *end;
       window_sz = strtoull(argv[i + 1], &end, 10);
 
-      if (end == argv[i + 1]) {
+      if (end == argv[i + 1])
         return print_usage(argv[0]);
-      }
 
       if (errno != 0) {
         perror("could not parse window size");
