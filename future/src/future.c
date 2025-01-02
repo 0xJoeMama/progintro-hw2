@@ -4,8 +4,7 @@
 #include <string.h>
 
 static inline int print_usage(const char *prog_name) {
-  fprintf(stderr, "Usage: %s <filename> [--window N (default: 50)]\n",
-          prog_name);
+  printf("Usage: %s <filename> [--window N (default: 50)]\n", prog_name);
   return 1;
 }
 
@@ -15,16 +14,16 @@ int main(int argc, const char **argv) {
   }
 
   const char *filename = NULL;
-  long long window_sz = 50;
+  unsigned long long window_sz = 50;
   for (int i = 1; i < argc; i++) {
     if (strncmp("--window", argv[i], 8) == 0) {
       if (i + 1 >= argc)
         return print_usage(argv[0]);
 
-      char* end;
+      char *end;
       window_sz = strtoull(argv[i + 1], &end, 10);
 
-      if (end == argv[i+1])  {
+      if (end == argv[i + 1]) {
         return print_usage(argv[0]);
       }
 
@@ -75,7 +74,7 @@ int main(int argc, const char **argv) {
   }
 
   double sum = 0;
-  for (long long i = 0; i < window_sz; i++)
+  for (unsigned long long i = 0; i < window_sz; i++)
     sum += window[i];
 
   double average = sum / window_sz;
