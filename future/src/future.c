@@ -1,7 +1,13 @@
 #include <errno.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+typedef struct {
+  const char *value_filepath;
+  size_t window_sz;
+} Config_t;
 
 static int print_usage(const char *prog_name) {
   fprintf(stderr, "Usage: %s <filename> [--window N (default: 50)]\n",
@@ -9,58 +15,85 @@ static int print_usage(const char *prog_name) {
   return 1;
 }
 
-int main(int argc, const char **argv) {
+static int parse_cli(int argc, const char **argv, Config_t *cfg) {
   if (argc < 2 || argc > 4)
     return print_usage(argv[0]);
 
-  const char *filename = NULL;
-  unsigned long long window_sz = 50;
+  cfg->window_sz = 50;
+  cfg->value_filepath = NULL;
+
   for (int i = 1; i < argc; i++) {
     if (strncmp("--window", argv[i], 8) == 0) {
+      // since we need to peek into the next argument, if it is not provided, we
+      // need to fail
       if (i + 1 >= argc)
         return print_usage(argv[0]);
 
       char *end;
-      window_sz = strtoull(argv[i + 1], &end, 10);
+      // parse window size as an unsigned long long and cast to size_t
+      cfg->window_sz = (size_t)strtoull(argv[i + 1], &end, 10);
 
+      // if strtoull failed to find an int, print usage and fail
       if (end == argv[i + 1])
         return print_usage(argv[0]);
 
+      // if strtoull failed because the provided integer was out of range, fail
+      // as well
       if (errno != 0) {
         perror("could not parse window size");
         return 1;
       }
+      // we need to increment i since we just consumed the integer argument
+      // after it
       i++;
+    } else if (!cfg->value_filepath) {
+      // if filename is not initialized, we initialize it to the first
+      // non-argument string
+      cfg->value_filepath = argv[i];
     } else {
-      filename = argv[i];
+      // otherwise, we fail because an extra argument was provided
+      return print_usage(argv[0]);
     }
   }
 
-  if (!filename)
+  // since filename is a required argument, we fail if we it does not have a
+  // value
+  if (!cfg->value_filepath)
     return print_usage(argv[0]);
 
-  if (window_sz <= 0) {
+  // check if window size is 0
+  if (cfg->window_sz == 0) {
     fprintf(stderr, "Window too small!\n");
     return 1;
   }
 
-  FILE *value_file = fopen(filename, "r");
-  if (!value_file) {
-    perror("could not open value file");
-    return 1;
-  }
+  return 0;
+}
 
-  double *window = calloc(window_sz, sizeof(double));
+int main(int argc, const char **argv) {
+  Config_t cfg;
+  // parse the command line arguments
+  if (parse_cli(argc, argv, &cfg) != 0)
+    return 1;
+
+  // allocate window
+  double *window = calloc(cfg.window_sz, sizeof(double));
   if (!window) {
     fprintf(stderr, "Failed to allocate window memory\n");
-    if (fclose(value_file) != 0)
-      perror("could not close value file");
-
     return 1;
   }
 
+  // read values into window
+  FILE *value_file = fopen(cfg.value_filepath, "r");
+  if (!value_file) {
+    perror("could not open value file");
+    free(window);
+    return 1;
+  }
+
+  // keep track of the amount of numbers read
   size_t nums_read = 0;
-  while (fscanf(value_file, "%lf", &window[nums_read % window_sz]) == 1)
+  while (fscanf(value_file, "%lf", &window[nums_read % cfg.window_sz]) == 1)
     nums_read++;
 
   if (fclose(value_file) != 0) {
@@ -69,19 +102,22 @@ int main(int argc, const char **argv) {
     return 1;
   }
 
-  if ((size_t)window_sz > nums_read) {
+  // handle too large windows
+  if (cfg.window_sz > nums_read) {
     fprintf(stderr, "Window too large!\n");
     free(window);
     return 1;
   }
 
+  // calculate the average of the window array
   double sum = 0;
-  for (unsigned long long i = 0; i < window_sz; i++)
+  for (size_t i = 0; i < cfg.window_sz; i++)
     sum += window[i];
 
-  double average = sum / window_sz;
+  // division is safe, since window_sz == 0 has already been handled
+  double average = sum / cfg.window_sz;
 
-  printf("%.2f\n", average);
+  printf("%.2lf\n", average);
 
   free(window);
 
