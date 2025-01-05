@@ -70,7 +70,7 @@ static int parse_cli(int argc, const char **argv, Config_t *cfg) {
 }
 
 int main(int argc, const char **argv) {
-  Config_t cfg;
+  Config_t cfg = {0};
   // parse the command line arguments
   if (parse_cli(argc, argv, &cfg) != 0)
     return 1;
