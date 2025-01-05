@@ -1,5 +1,4 @@
 #include <errno.h>
-#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -93,9 +92,19 @@ int main(int argc, const char **argv) {
 
   // keep track of the amount of numbers read
   size_t nums_read = 0;
-  while (fscanf(value_file, "%lf", &window[nums_read % cfg.window_sz]) == 1)
+  // keep track of first failing scanf result
+  int res;
+  while ((res = fscanf(value_file, "%lf",
+                       &window[nums_read % cfg.window_sz])) == 1)
     nums_read++;
 
+  if (res == 0) {
+    fprintf(stderr, "could not parse number at index %zu\n", nums_read);
+    return 1;
+  }
+
+  // if res isnt 0, it's definitely EOF, which means we finished reading the
+  // file, so we can close it
   if (fclose(value_file) != 0) {
     perror("could not close value file");
     free(window);
