@@ -30,18 +30,13 @@ static int parse_cli(int argc, const char **argv, Config_t *cfg) {
 
       char *end;
       // parse window size as an unsigned long long and cast to size_t
+      errno = 0;
       cfg->window_sz = (size_t)strtoull(argv[i + 1], &end, 10);
 
-      // if strtoull failed to find an int, print usage and fail
-      if (end == argv[i + 1])
+      // if strtoull failed print usage and fail
+      if (end == argv[i + 1] || errno != 0)
         return print_usage(argv[0]);
 
-      // if strtoull failed because the provided integer was out of range, fail
-      // as well
-      if (errno != 0) {
-        perror("could not parse window size");
-        return 1;
-      }
       // we need to increment i since we just consumed the integer argument
       // after it
       i++;
