@@ -1,4 +1,3 @@
-#include <errno.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -144,7 +143,6 @@ static int parse_input(Str_t buf, DynamicArray_t(Str_t) * cities,
     entry.cities[0] = loc_1;
     entry.cities[1] = loc_2;
 
-    errno = 0;
     entry.cost = (int32_t)strtol(local_buf, &end, 10);
 
     // WARN: the following code does not compile with -m32 because we are
