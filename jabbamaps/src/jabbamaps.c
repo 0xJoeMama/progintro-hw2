@@ -17,8 +17,8 @@ typedef struct {
 
 typedef int32_t **DistanceMatrix_t;
 
-DA_IMPL(Str_t);
-DA_IMPL(CityEntry_t);
+DA_DECLARE_IMPL(Str_t)
+DA_DECLARE_IMPL(CityEntry_t)
 
 static int print_usage(const char *prog) {
   fprintf(stderr, "Usage: %s <filename>\n", prog);
@@ -211,34 +211,6 @@ static void free_memo(Memo_t *memo) {
   free_heap_table(memo->cities, (void **)memo->dists);
   free_heap_table(memo->cities, (void **)memo->last_cities);
   memset(memo, 0, sizeof(Memo_t));
-}
-
-int64_t held_karp(int cities_left, Memo_t *memo, int64_t **costs, uint64_t S,
-                  size_t k) {
-  if (cities_left == 1)
-    return costs[0][k];
-
-  if (memo->dists[k][S] < INT32_MAX)
-    return memo->dists[k][S];
-
-  // ignore the zero-th city
-  int64_t distance = INT64_MAX;
-  for (size_t m = 0; m < memo->cities - 1; m++) {
-    // if that bit is set
-    if ((S & (1 << m)) && m != k) {
-      int64_t new_distance =
-          held_karp(cities_left - 1, memo, costs, (S & ~(1 << m)), m) +
-          costs[m][k];
-
-      if (new_distance < distance)
-        distance = new_distance;
-    }
-  }
-
-  // TODO: this will overflow
-  memo->dists[k][S] = distance;
-
-  return distance;
 }
 
 int main(int argc, const char **argv) {
