@@ -11,11 +11,11 @@
 #include "../../std.h/include/string_slice.h"
 
 typedef struct {
-  int cities[2];
-  int cost;
+  uint8_t cities[2];
+  int32_t cost;
 } CityEntry_t;
 
-typedef int **DistanceMatrix_t;
+typedef int32_t **DistanceMatrix_t;
 
 DA_IMPL(Str_t);
 DA_IMPL(CityEntry_t);
@@ -23,6 +23,34 @@ DA_IMPL(CityEntry_t);
 static int print_usage(const char *prog) {
   fprintf(stderr, "Usage: %s <filename>\n", prog);
   return 1;
+}
+
+static void **create_heap_table(size_t rows, size_t cols, size_t el_sz) {
+  void **dists = calloc(rows, sizeof(void *));
+  if (!dists)
+    return NULL;
+
+  // since the zero-th city is never used we need to reduce the amount of
+  // entries by 1 in ever set
+  for (size_t i = 0; i < rows; i++) {
+    dists[i] = calloc(cols, el_sz);
+    if (!dists[i]) {
+      for (size_t j = 0; j < i; j++)
+        free(dists[j]);
+
+      free(dists);
+      return NULL;
+    }
+  }
+
+  return dists;
+}
+
+static void free_heap_table(size_t rows, void **buf) {
+  for (size_t i = 0; i < rows; i++)
+    free(buf[i]);
+
+  free(buf);
 }
 
 static int read_input(FILE *input, Str_t *out_buf) {
@@ -85,7 +113,8 @@ static int parse_input(Str_t buf, DynamicArray_t(Str_t) * cities,
   if (!da_init(CityEntry_t)(&distances, 16))
     return 0;
 
-  while ((line = ss_split_once(&buf, '\n')).len != 0) {
+  while (buf.len != 0) {
+    line = ss_split_once(&buf, '\n');
     Str_t city_1 = ss_trim(ss_split_once(&line, '-'));
     Str_t city_2 = ss_trim(ss_split_once(&line, ':'));
 
@@ -115,9 +144,12 @@ static int parse_input(Str_t buf, DynamicArray_t(Str_t) * cities,
     entry.cities[1] = loc_2;
 
     errno = 0;
-    entry.cost = strtol(local_buf, &end, 10);
+    entry.cost = (int32_t)strtol(local_buf, &end, 10);
 
-    if (end == local_buf || errno != 0) {
+    // WARN: the following code does not compile with -m32 because we are
+    // missing some headers for errno
+    // assuming we cannot fail with ERANGE
+    if (end == local_buf /*|| errno != 0*/) {
       fprintf(stderr, "could not read integer from buffer %12s\n", local_buf);
       da_deinit(CityEntry_t)(&distances, NULL);
       return 0;
@@ -129,19 +161,12 @@ static int parse_input(Str_t buf, DynamicArray_t(Str_t) * cities,
     }
   }
 
-  int **costs = calloc(cities->len, sizeof(int *));
-  if (!costs)
+  int32_t **costs =
+      (int32_t **)create_heap_table(cities->len, cities->len, sizeof(int32_t));
+
+  if (!costs) {
+    da_deinit(CityEntry_t)(&distances, NULL);
     return 0;
-
-  for (size_t i = 0; i < cities->len; i++) {
-    costs[i] = calloc(cities->len, sizeof(int));
-    if (!costs[i]) {
-      for (size_t j = 0; j < i; j++)
-        free(costs[i]);
-
-      free(costs);
-      return 0;
-    }
   }
 
   for (CityEntry_t *curr = distances.buf; curr < distances.buf + distances.len;
@@ -152,7 +177,39 @@ static int parse_input(Str_t buf, DynamicArray_t(Str_t) * cities,
 
   *costs_out = costs;
 
+  da_deinit(CityEntry_t)(&distances, NULL);
   return 1;
+}
+
+typedef struct {
+  int32_t **dists;
+  uint8_t **last_cities;
+  size_t cities;
+} Memo_t;
+
+static int create_memo(DynamicArray_t(Str_t) * cities, Memo_t *memo) {
+  size_t subsets = 1 << (cities->len - 1);
+  memo->dists =
+      (int32_t **)create_heap_table(cities->len, subsets, sizeof(int32_t));
+  if (!memo->dists)
+    return 0;
+  memo->last_cities =
+      (uint8_t **)create_heap_table(cities->len, subsets, sizeof(uint8_t));
+
+  if (!memo->last_cities) {
+    free_heap_table(cities->len, (void **)memo->dists);
+    return 0;
+  }
+
+  memo->cities = cities->len;
+
+  return 1;
+}
+
+static void free_memo(Memo_t *memo) {
+  free_heap_table(memo->cities, (void **)memo->dists);
+  free_heap_table(memo->cities, (void **)memo->last_cities);
+  memset(memo, 0, sizeof(Memo_t));
 }
 
 int main(int argc, const char **argv) {
@@ -196,10 +253,16 @@ int main(int argc, const char **argv) {
     }
   }
 
-  for (size_t i = 0; i < cities.len; i++)
-    free(costs[i]);
+  Memo_t memo;
+  if (!create_memo(&cities, &memo)) {
+    free_heap_table(cities.len, (void **)costs);
+    free((char *)file_data.s);
+    return 1;
+  }
 
-  free(costs);
+  free_heap_table(cities.len, (void **)costs);
+  free_memo(&memo);
+  free((char *)file_data.s);
 
   return 0;
 }
