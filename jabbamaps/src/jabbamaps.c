@@ -5,14 +5,20 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define SS_IMPL
 #include "../../std.h/include/dynamic_array.h"
 
 #define SS_IMPL
 #include "../../std.h/include/string_slice.h"
 
+typedef struct {
+  int cities[2];
+  int cost;
+} CityEntry_t;
+
+typedef int **DistanceMatrix_t;
+
 DA_IMPL(Str_t);
-DA_IMPL(int);
+DA_IMPL(CityEntry_t);
 
 static int print_usage(const char *prog) {
   fprintf(stderr, "Usage: %s <filename>\n", prog);
@@ -45,8 +51,6 @@ static int read_input(FILE *input, Str_t *out_buf) {
     return 0;
   }
 
-  printf("Size of file is %zu, contents: %20s", file_sz, data);
-
   out_buf->s = data;
   out_buf->len = file_sz;
 
@@ -70,12 +74,16 @@ void ss_print(Str_t s) {
   }
 }
 
-
 // TODO: create dynamic array set which will expand the array
-static int parse_input(Str_t buf, DynamicArray_t(Str_t) * cities) {
+static int parse_input(Str_t buf, DynamicArray_t(Str_t) * cities,
+                       DistanceMatrix_t *costs_out) {
   char local_buf[12];
   char *end;
   Str_t line;
+
+  DynamicArray_t(CityEntry_t) distances;
+  if (!da_init(CityEntry_t)(&distances, 16))
+    return 0;
 
   while ((line = ss_split_once(&buf, '\n')).len != 0) {
     Str_t city_1 = ss_trim(ss_split_once(&line, '-'));
@@ -96,25 +104,53 @@ static int parse_input(Str_t buf, DynamicArray_t(Str_t) * cities) {
     memset(local_buf, 0, sizeof(local_buf));
     if (line.len > sizeof(local_buf)) {
       fprintf(stderr, "number exceeded 2^31\n");
-      return 1;
+      return 0;
     }
 
     memcpy(local_buf, line.s, line.len);
 
+    CityEntry_t entry;
+
+    entry.cities[0] = loc_1;
+    entry.cities[1] = loc_2;
+
     errno = 0;
-    int dist = strtol(local_buf, &end, 10);
+    entry.cost = strtol(local_buf, &end, 10);
 
     if (end == local_buf || errno != 0) {
       fprintf(stderr, "could not read integer from buffer %12s\n", local_buf);
-      return 1;
+      da_deinit(CityEntry_t)(&distances, NULL);
+      return 0;
     }
 
-    printf("Distance between cities ");
-    ss_print(city_1);
-    printf(" and ");
-    ss_print(city_2);
-    printf(" is %d\n", dist);
+    if (!da_push(CityEntry_t)(&distances, entry)) {
+      da_deinit(CityEntry_t)(&distances, NULL);
+      return 0;
+    }
   }
+
+  int **costs = calloc(cities->len, sizeof(int *));
+  if (!costs)
+    return 0;
+
+  for (size_t i = 0; i < cities->len; i++) {
+    costs[i] = calloc(cities->len, sizeof(int));
+    if (!costs[i]) {
+      for (size_t j = 0; j < i; j++)
+        free(costs[i]);
+
+      free(costs);
+      return 0;
+    }
+  }
+
+  for (CityEntry_t *curr = distances.buf; curr < distances.buf + distances.len;
+       curr++) {
+    costs[curr->cities[0]][curr->cities[1]] = curr->cost;
+    costs[curr->cities[1]][curr->cities[0]] = curr->cost;
+  }
+
+  *costs_out = costs;
 
   return 1;
 }
@@ -143,12 +179,27 @@ int main(int argc, const char **argv) {
   // we will always have less than or equal to 64 cities so we are safe to do
   // this
   Str_t cities_buf[64];
+  DistanceMatrix_t costs = NULL;
   DynamicArray_t(Str_t) cities = {.buf = cities_buf, .cap = 64, .len = 0};
 
-  if (!parse_input(file_data, &cities)) {
+  if (!parse_input(file_data, &cities, &costs)) {
     free((char *)file_data.s);
     return 1;
   }
+
+  for (size_t i = 0; i < cities.len; i++) {
+    for (size_t j = 0; j < cities.len; j++) {
+      ss_print(cities_buf[i]);
+      printf(" has a distance of %d from city ", costs[i][j]);
+      ss_print(cities_buf[j]);
+      printf("\n");
+    }
+  }
+
+  for (size_t i = 0; i < cities.len; i++)
+    free(costs[i]);
+
+  free(costs);
 
   return 0;
 }
