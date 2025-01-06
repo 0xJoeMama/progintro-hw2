@@ -1,0 +1,6 @@
+Athens-Thessaloniki: 501
+Athens-Ioannina: 422
+Athens-Patras: 224
+Patras-Thessaloniki: 468
+Patras-Ioannina: 223
+Thessaloniki-Ioannina: 261

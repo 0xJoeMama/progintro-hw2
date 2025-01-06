@@ -1,0 +1,253 @@
+Republic City-Tipoca City: 824
+Galactic City-Republic City: 47
+Anchorhead-NiJedha: 121
+Republic City-Sundari: 484
+Coral City-Republic City: 504
+Mos Pelgo-Sundari: 513
+Coral City-Theed: 390
+Aldera-Canto Bight: 703
+Cloud City-Sern Prime: 568
+Anchorhead-Kachirho: 925
+Mos Eisley-Stalgasin Hive: 317
+Capital City (Lothal City)-Cloud City: 768
+Coral City-Coronet City: 142
+Cloud City-Mos Espa: 453
+Anchorhead-Tipoca City: 372
+Anchorhead-Lessu: 44
+Kachirho-Republic City: 581
+Anchorhead-Sundari: 761
+Kachirho-Theed: 249
+Lessu-Tipoca City: 673
+Lessu-Sundari: 529
+Canto Bight-Republic City: 952
+Coral City-Mos Pelgo: 728
+Canto Bight-Theed: 586
+NiJedha-Tipoca City: 815
+Galactic City-NiJedha: 299
+Cloud City-Otoh Gunga: 185
+Eriadu City-Otoh Gunga: 789
+NiJedha-Sundari: 663
+Coronet City-Hanna City: 53
+Sern Prime-Stalgasin Hive: 243
+Republic City-Theed: 353
+Aldera-Hanna City: 872
+Capital City (Lothal City)-Sundari: 277
+Cloud City-Stalgasin Hive: 491
+Canto Bight-Coronet City: 196
+Hanna City-NiJedha: 362
+Kachirho-Mos Pelgo: 501
+Galactic City-Kachirho: 449
+Galactic City-Tipoca City: 198
+Galactic City-Lessu: 842
+Anchorhead-Republic City: 639
+Canto Bight-Mos Pelgo: 32
+Hanna City-Kachirho: 539
+Coronet City-Mos Eisley: 554
+Canto Bight-Coral City: 699
+Anchorhead-Theed: 931
+Lessu-Republic City: 68
+Aldera-Mos Eisley: 751
+Canto Bight-Mos Eisley: 720
+Lessu-Theed: 699
+Hanna City-Tipoca City: 512
+Hanna City-Lessu: 781
+Hanna City-Sundari: 905
+Otoh Gunga-Tipoca City: 414
+NiJedha-Republic City: 523
+Anchorhead-Coronet City: 153
+Capital City (Lothal City)-Republic City: 177
+Kachirho-Lessu: 302
+Mos Pelgo-NiJedha: 141
+NiJedha-Theed: 66
+Cloud City-Eriadu City: 136
+Cloud City-Sundari: 883
+Eriadu City-Sundari: 437
+Coronet City-Sern Prime: 742
+Anchorhead-Mos Pelgo: 628
+Mos Espa-Sern Prime: 590
+Anchorhead-Coral City: 970
+Lessu-Mos Pelgo: 45
+Aldera-Sern Prime: 893
+Capital City (Lothal City)-Coronet City: 286
+Coronet City-Galactic City: 90
+Mos Pelgo-Tipoca City: 440
+Coronet City-Mos Espa: 80
+Galactic City-Theed: 826
+Canto Bight-Galactic City: 174
+Aldera-Galactic City: 162
+Lessu-NiJedha: 254
+Mos Eisley-Otoh Gunga: 900
+Aldera-Mos Espa: 529
+Hanna City-Republic City: 114
+Sundari-Theed: 681
+Galactic City-Hanna City: 853
+Hanna City-Theed: 453
+Aldera-Capital City (Lothal City): 459
+Canto Bight-Capital City (Lothal City): 578
+Otoh Gunga-Republic City: 981
+Capital City (Lothal City)-NiJedha: 344
+Coral City-Hanna City: 375
+Otoh Gunga-Theed: 13
+Coronet City-Otoh Gunga: 862
+Eriadu City-Republic City: 936
+Mos Espa-Otoh Gunga: 792
+Aldera-Otoh Gunga: 566
+Coronet City-Stalgasin Hive: 154
+Galactic City-Mos Pelgo: 765
+Capital City (Lothal City)-Kachirho: 819
+Mos Espa-Stalgasin Hive: 682
+Aldera-Stalgasin Hive: 317
+Canto Bight-Stalgasin Hive: 471
+Anchorhead-Canto Bight: 184
+Galactic City-Mos Eisley: 717
+Capital City (Lothal City)-Tipoca City: 941
+Hanna City-Mos Pelgo: 719
+Coral City-Mos Eisley: 994
+Mos Pelgo-Republic City: 59
+Capital City (Lothal City)-Lessu: 945
+Canto Bight-Hanna City: 541
+Anchorhead-Capital City (Lothal City): 267
+Mos Pelgo-Theed: 443
+Aldera-Cloud City: 868
+Mos Eisley-Tipoca City: 974
+Mos Eisley-Sundari: 804
+Kachirho-Mos Eisley: 892
+Cloud City-NiJedha: 534
+Eriadu City-NiJedha: 708
+Galactic City-Sern Prime: 52
+Coronet City-Eriadu City: 370
+Coral City-Sern Prime: 246
+Sundari-Tipoca City: 141
+Aldera-Eriadu City: 950
+Canto Bight-Eriadu City: 306
+Cloud City-Kachirho: 456
+Eriadu City-Kachirho: 314
+Anchorhead-Hanna City: 71
+Coral City-Galactic City: 874
+Sern Prime-Tipoca City: 547
+Galactic City-Mos Espa: 438
+Sern Prime-Sundari: 624
+Coral City-Mos Espa: 122
+Cloud City-Tipoca City: 659
+Cloud City-Lessu: 824
+Eriadu City-Tipoca City: 511
+Capital City (Lothal City)-Theed: 747
+Eriadu City-Lessu: 864
+Kachirho-Sern Prime: 224
+Mos Eisley-Republic City: 384
+Capital City (Lothal City)-Hanna City: 524
+Mos Eisley-Theed: 264
+Canto Bight-Sern Prime: 624
+Kachirho-Mos Espa: 581
+Coral City-Otoh Gunga: 25
+Anchorhead-Mos Eisley: 919
+Republic City-Sern Prime: 822
+Galactic City-Stalgasin Hive: 621
+Lessu-Mos Eisley: 839
+Coral City-Stalgasin Hive: 26
+Canto Bight-Mos Espa: 65
+Capital City (Lothal City)-Mos Pelgo: 627
+Stalgasin Hive-Sundari: 772
+Capital City (Lothal City)-Coral City: 87
+Capital City (Lothal City)-Mos Eisley: 157
+Sern Prime-Theed: 914
+Mos Eisley-Mos Pelgo: 595
+Otoh Gunga-Stalgasin Hive: 882
+Cloud City-Republic City: 750
+Kachirho-Stalgasin Hive: 189
+Anchorhead-Sern Prime: 266
+Cloud City-Theed: 18
+Eriadu City-Theed: 101
+Canto Bight-Otoh Gunga: 591
+Mos Eisley-NiJedha: 263
+Lessu-Sern Prime: 318
+Anchorhead-Galactic City: 700
+Cloud City-Coronet City: 289
+Anchorhead-Mos Espa: 420
+NiJedha-Sern Prime: 62
+Coral City-Eriadu City: 154
+Capital City (Lothal City)-Sern Prime: 206
+Lessu-Mos Espa: 772
+Coronet City-NiJedha: 793
+Republic City-Stalgasin Hive: 236
+Mos Pelgo-Stalgasin Hive: 931
+Hanna City-Mos Eisley: 236
+Mos Espa-NiJedha: 970
+Aldera-NiJedha: 528
+Canto Bight-Cloud City: 242
+Cloud City-Mos Pelgo: 532
+Capital City (Lothal City)-Galactic City: 29
+Eriadu City-Mos Pelgo: 219
+Cloud City-Coral City: 943
+Capital City (Lothal City)-Mos Espa: 53
+Coronet City-Kachirho: 397
+Theed-Tipoca City: 772
+Anchorhead-Otoh Gunga: 181
+Eriadu City-Mos Eisley: 520
+Aldera-Kachirho: 913
+Coronet City-Tipoca City: 151
+Coronet City-Lessu: 106
+Anchorhead-Stalgasin Hive: 387
+Coronet City-Sundari: 598
+Mos Espa-Tipoca City: 504
+Aldera-Tipoca City: 836
+Aldera-Lessu: 565
+Lessu-Stalgasin Hive: 274
+Mos Espa-Sundari: 708
+Aldera-Anchorhead: 124
+NiJedha-Otoh Gunga: 116
+Aldera-Sundari: 482
+Canto Bight-Sundari: 68
+Hanna City-Sern Prime: 50
+Anchorhead-Cloud City: 675
+NiJedha-Stalgasin Hive: 668
+Otoh Gunga-Sern Prime: 116
+Capital City (Lothal City)-Stalgasin Hive: 774
+Eriadu City-Sern Prime: 439
+Hanna City-Mos Espa: 472
+Cloud City-Galactic City: 211
+Eriadu City-Galactic City: 946
+Galactic City-Otoh Gunga: 688
+Eriadu City-Mos Espa: 743
+Anchorhead-Eriadu City: 989
+Coronet City-Republic City: 12
+Mos Pelgo-Sern Prime: 503
+Hanna City-Otoh Gunga: 525
+Stalgasin Hive-Tipoca City: 896
+Coronet City-Theed: 660
+Mos Espa-Republic City: 844
+Aldera-Republic City: 65
+Mos Espa-Theed: 91
+Aldera-Theed: 56
+Hanna City-Stalgasin Hive: 196
+Kachirho-Otoh Gunga: 332
+Capital City (Lothal City)-Eriadu City: 549
+Coral City-NiJedha: 827
+Aldera-Coronet City: 438
+Eriadu City-Stalgasin Hive: 657
+Coral City-Kachirho: 511
+Coronet City-Mos Pelgo: 638
+Cloud City-Hanna City: 847
+Eriadu City-Hanna City: 996
+Mos Pelgo-Otoh Gunga: 835
+Kachirho-NiJedha: 20
+Mos Espa-Mos Pelgo: 534
+Aldera-Mos Pelgo: 984
+Coral City-Tipoca City: 398
+Galactic City-Sundari: 51
+Aldera-Coral City: 376
+Coral City-Lessu: 924
+Coral City-Sundari: 905
+Canto Bight-NiJedha: 796
+Stalgasin Hive-Theed: 739
+Mos Eisley-Sern Prime: 210
+Kachirho-Tipoca City: 66
+Otoh Gunga-Sundari: 764
+Cloud City-Mos Eisley: 390
+Kachirho-Sundari: 939
+Lessu-Otoh Gunga: 609
+Canto Bight-Kachirho: 129
+Mos Eisley-Mos Espa: 750
+Canto Bight-Tipoca City: 792
+Canto Bight-Lessu: 709
+Capital City (Lothal City)-Otoh Gunga: 93
