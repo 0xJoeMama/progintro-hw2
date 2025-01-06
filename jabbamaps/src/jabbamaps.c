@@ -113,6 +113,7 @@ static int parse_input(Str_t buf, DynamicArray_t(Str_t) * cities,
   if (!da_init(CityEntry_t)(&distances, 16))
     return 0;
 
+  buf = ss_trim(buf);
   while (buf.len != 0) {
     line = ss_split_once(&buf, '\n');
     Str_t city_1 = ss_trim(ss_split_once(&line, '-'));
@@ -182,7 +183,7 @@ static int parse_input(Str_t buf, DynamicArray_t(Str_t) * cities,
 }
 
 typedef struct {
-  int32_t **dists;
+  int64_t **dists;
   uint8_t **last_cities;
   size_t cities;
 } Memo_t;
@@ -190,7 +191,7 @@ typedef struct {
 static int create_memo(DynamicArray_t(Str_t) * cities, Memo_t *memo) {
   size_t subsets = 1 << (cities->len - 1);
   memo->dists =
-      (int32_t **)create_heap_table(cities->len, subsets, sizeof(int32_t));
+      (int64_t **)create_heap_table(cities->len, subsets, sizeof(int64_t));
   if (!memo->dists)
     return 0;
   memo->last_cities =
@@ -210,6 +211,34 @@ static void free_memo(Memo_t *memo) {
   free_heap_table(memo->cities, (void **)memo->dists);
   free_heap_table(memo->cities, (void **)memo->last_cities);
   memset(memo, 0, sizeof(Memo_t));
+}
+
+int64_t held_karp(int cities_left, Memo_t *memo, int64_t **costs, uint64_t S,
+                  size_t k) {
+  if (cities_left == 1)
+    return costs[0][k];
+
+  if (memo->dists[k][S] < INT32_MAX)
+    return memo->dists[k][S];
+
+  // ignore the zero-th city
+  int64_t distance = INT64_MAX;
+  for (size_t m = 0; m < memo->cities - 1; m++) {
+    // if that bit is set
+    if ((S & (1 << m)) && m != k) {
+      int64_t new_distance =
+          held_karp(cities_left - 1, memo, costs, (S & ~(1 << m)), m) +
+          costs[m][k];
+
+      if (new_distance < distance)
+        distance = new_distance;
+    }
+  }
+
+  // TODO: this will overflow
+  memo->dists[k][S] = distance;
+
+  return distance;
 }
 
 int main(int argc, const char **argv) {
