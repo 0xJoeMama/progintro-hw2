@@ -18,6 +18,8 @@ typedef struct {
 typedef int32_t **DistanceMatrix_t;
 
 DA_DECLARE_IMPL(Str_t)
+DA_DECLARE_IMPL(int64_t)
+DA_DECLARE_IMPL(int)
 DA_DECLARE_IMPL(CityEntry_t)
 
 static int print_usage(const char *prog) {
@@ -182,7 +184,6 @@ static int parse_input(Str_t buf, DynamicArray_t(Str_t) * cities,
 
 typedef struct {
   int64_t **dists;
-  uint8_t **last_cities;
   int city_cnt;
 } Memo_t;
 
@@ -197,14 +198,6 @@ static int create_memo(DynamicArray_t(Str_t) * cities, Memo_t *memo) {
   for (size_t i = 0; i < cities->len; i++)
     memset(memo->dists[i], 0xFF, subsets * sizeof(int64_t));
 
-  memo->last_cities =
-      (uint8_t **)create_heap_table(cities->len, subsets, sizeof(uint8_t));
-
-  if (!memo->last_cities) {
-    free_heap_table(cities->len, (void **)memo->dists);
-    return 0;
-  }
-
   memo->city_cnt = cities->len;
 
   return 1;
@@ -212,36 +205,102 @@ static int create_memo(DynamicArray_t(Str_t) * cities, Memo_t *memo) {
 
 static void free_memo(Memo_t *memo) {
   free_heap_table(memo->city_cnt, (void **)memo->dists);
-  free_heap_table(memo->city_cnt, (void **)memo->last_cities);
   memset(memo, 0, sizeof(Memo_t));
 }
 
-int count_ones(int64_t x) {
-  int res = 0;
-  for (int i = 0; i < 64; i++)
-    res += (x & (1 << i)) ? 1 : 0;
+#define is_set(bs, bit) (bs & (1 << bit))
+int combinations(DynamicArray_t(int64_t) * combs, int64_t S, int curr, int n,
+                 int k) {
+  if (k == 0)
+    return da_push(int64_t)(combs, S);
 
-  return res;
+  for (int i = curr; i < n; i++)
+    if (!combinations(combs, S | (1 << i), i + 1, n, k - 1))
+      return 0;
+
+  return 1;
 }
 
-int64_t min_distance(int64_t visited, int current, DistanceMatrix_t costs,
-                     int cities) {
-  if (count_ones(visited) == cities)
-    return 0;
+int generate_combinations(DynamicArray_t(int64_t) * combs, int n, int k) {
+  combs->len = 0;
+  return combinations(combs, 0, 0, n, k);
+}
 
-  int64_t min = INT64_MAX;
-  for (int i = 0; i < cities; i++) {
-    // if we haven't visited the city already
-    if ((visited & (1 << i)) == 0) {
-      int64_t new_distance =
-          min_distance(visited | (1 << i), i, costs, cities) +
-          costs[i][current];
-      if (new_distance < min)
-        min = new_distance;
+int tsp(DistanceMatrix_t cost, Memo_t *memo) {
+  // initialize 2 element subsets
+  for (int i = 1; i < memo->city_cnt; i++)
+    memo->dists[0][(1 | (1 << i))] = cost[0][i];
+
+  DynamicArray_t(int64_t) combs;
+  if (!da_init(int64_t)(&combs, 32))
+    return -1;
+
+  for (int i = 3; i <= memo->city_cnt; i++) {
+    if (!generate_combinations(&combs, memo->city_cnt, i)) {
+      fprintf(stderr, "failed to allocate memory for combinations buffer\n");
+      da_deinit(int64_t)(&combs, NULL);
+      return 0;
+    }
+
+    for (size_t j = 0; j < combs.len; j++) {
+      int64_t subset = combs.buf[j];
+      if ((subset & 1) == 0)
+        continue;
+
+      for (int next_node = 0; next_node < memo->city_cnt; next_node++) {
+        // toggle the next-th bit of subset aka remove next from the subset
+        int64_t state = subset ^ (1 << next_node);
+        // inf placeholder
+        int64_t min = INT64_MAX;
+
+        for (int end_node = 1; end_node < memo->city_cnt; end_node++) {
+          if (end_node == next_node || !is_set(subset, end_node))
+            continue;
+
+          int64_t new_dist =
+              memo->dists[end_node][state] + cost[end_node][next_node];
+
+          if (new_dist < min)
+            min = new_dist;
+        }
+
+        memo->dists[next_node][subset] = min;
+      }
     }
   }
+  da_deinit(int64_t)(&combs, NULL);
 
-  return min;
+  return 1;
+}
+
+int construct_tour(Memo_t *memo, DistanceMatrix_t costs,
+                   DynamicArray_t(int) * tour) {
+  size_t last_idx = 0;
+  uint64_t state = (1 << memo->city_cnt) - 1;
+  if (!da_init(int)(tour, 64))
+    return 0;
+
+  int idx = -1;
+  for (int i = (int)memo->city_cnt - 1; i >= 0; i--) {
+    for (int j = 1; j < memo->city_cnt; j++) {
+      if (idx < 0)
+        idx = j;
+      int64_t prev_dist = memo->dists[idx][state];
+      int64_t new_dist = memo->dists[j][state] + costs[j][last_idx];
+
+      if (new_dist < prev_dist)
+        idx = j;
+    }
+
+    if (!da_push(int)(tour, i)) {
+      da_deinit(int)(tour, NULL);
+      return 0;
+    }
+    state = state ^ (1 << idx);
+    last_idx = idx;
+  }
+
+  return 1;
 }
 
 int main(int argc, const char **argv) {
@@ -276,15 +335,6 @@ int main(int argc, const char **argv) {
     return 1;
   }
 
-  for (size_t i = 0; i < cities.len; i++) {
-    for (size_t j = 0; j < cities.len; j++) {
-      ss_print(cities_buf[i]);
-      printf(" has a distance of %d from city ", costs[i][j]);
-      ss_print(cities_buf[j]);
-      printf("\n");
-    }
-  }
-
   Memo_t memo;
   if (!create_memo(&cities, &memo)) {
     free_heap_table(cities.len, (void **)costs);
@@ -292,9 +342,21 @@ int main(int argc, const char **argv) {
     return 1;
   }
 
-  int64_t min = min_distance(0, 0, costs, cities.len);
-  printf("Distance is : %" PRId64 "\n", min);
+  // TODO: handle error case
+  tsp(costs, &memo);
 
+  DynamicArray_t(int) route;
+  if (!construct_tour(&memo, costs, &route))
+    return 1;
+
+  for (size_t i = 0; i < route.len; i++) {
+    ss_print(cities.buf[route.buf[i]]);
+    printf(", ");
+  }
+
+  printf("\n");
+
+  da_deinit(int)(&route, NULL);
   free_heap_table(cities.len, (void **)costs);
   free_memo(&memo);
   free((char *)file_data.s);
