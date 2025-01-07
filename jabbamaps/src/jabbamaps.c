@@ -209,21 +209,15 @@ static void free_memo(Memo_t *memo) {
 }
 
 #define is_set(bs, bit) (bs & (1 << bit))
-int combinations(DynamicArray_t(int64_t) * combs, int64_t S, int curr, int n,
-                 int k) {
-  if (k == 0)
-    return da_push(int64_t)(combs, S);
-
-  for (int i = curr; i < n; i++)
-    if (!combinations(combs, S | (1 << i), i + 1, n, k - 1))
-      return 0;
-
-  return 1;
-}
 
 int generate_combinations(DynamicArray_t(int64_t) * combs, int n, int k) {
   combs->len = 0;
-  return combinations(combs, 0, 0, n, k);
+  for (int64_t i = 0; i < (1 << n); i++)
+    if (__builtin_popcount(i) == k)
+      if (!da_push(int64_t)(combs, i))
+        return 0;
+
+  return 1;
 }
 
 int tsp(DistanceMatrix_t cost, Memo_t *memo) {
@@ -232,7 +226,7 @@ int tsp(DistanceMatrix_t cost, Memo_t *memo) {
     memo->dists[0][(1 | (1 << i))] = cost[0][i];
 
   DynamicArray_t(int64_t) combs;
-  if (!da_init(int64_t)(&combs, 32))
+  if (!da_init(int64_t)(&combs, 1 << memo->city_cnt))
     return -1;
 
   for (int i = 3; i <= memo->city_cnt; i++) {
@@ -252,7 +246,6 @@ int tsp(DistanceMatrix_t cost, Memo_t *memo) {
         int64_t state = subset ^ (1 << next_node);
         // inf placeholder
         int64_t min = INT64_MAX;
-
         for (int end_node = 1; end_node < memo->city_cnt; end_node++) {
           if (end_node == next_node || !is_set(subset, end_node))
             continue;
@@ -268,6 +261,7 @@ int tsp(DistanceMatrix_t cost, Memo_t *memo) {
       }
     }
   }
+
   da_deinit(int64_t)(&combs, NULL);
 
   return 1;
@@ -348,13 +342,6 @@ int main(int argc, const char **argv) {
   DynamicArray_t(int) route;
   if (!construct_tour(&memo, costs, &route))
     return 1;
-
-  for (size_t i = 0; i < route.len; i++) {
-    ss_print(cities.buf[route.buf[i]]);
-    printf(", ");
-  }
-
-  printf("\n");
 
   da_deinit(int)(&route, NULL);
   free_heap_table(cities.len, (void **)costs);

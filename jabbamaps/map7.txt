@@ -1,0 +1,22 @@
+Athens-Thessaloniki: 501
+Athens-Ioannina: 422
+Athens-Patras: 224
+Patras-Thessaloniki: 468
+Patras-Ioannina: 223
+Thessaloniki-Ioannina: 261
+Amfissa-Patras: 122
+Athens-Amfissa: 211
+Ioannina-Amfissa: 316
+Amfissa-Thessaloniki: 360
+Volos-Amfissa: 189
+Volos-Thessaloniki: 211
+Athens-Volos: 328
+Ioannina-Volos: 246
+Volos-Patras: 307
+Trikala-Volos: 123
+Trikala-Thessaloniki: 213
+Trikala-Athens: 316
+Trikala-Amfissa: 175
+Trikala-Ioannina: 128
+Trikala-Patras: 295
+
