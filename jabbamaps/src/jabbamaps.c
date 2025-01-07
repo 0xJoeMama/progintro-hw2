@@ -1,3 +1,4 @@
+#include <inttypes.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -101,7 +102,6 @@ void ss_print(Str_t s) {
   }
 }
 
-// TODO: create dynamic array set which will expand the array
 static int parse_input(Str_t buf, DynamicArray_t(Str_t) * cities,
                        DistanceMatrix_t *costs_out) {
   char local_buf[12];
@@ -183,15 +183,20 @@ static int parse_input(Str_t buf, DynamicArray_t(Str_t) * cities,
 typedef struct {
   int64_t **dists;
   uint8_t **last_cities;
-  size_t cities;
+  int city_cnt;
 } Memo_t;
 
 static int create_memo(DynamicArray_t(Str_t) * cities, Memo_t *memo) {
-  size_t subsets = 1 << (cities->len - 1);
+  size_t subsets = 1 << cities->len;
   memo->dists =
       (int64_t **)create_heap_table(cities->len, subsets, sizeof(int64_t));
   if (!memo->dists)
     return 0;
+
+  // initialize all cells to INT64_MIN
+  for (size_t i = 0; i < cities->len; i++)
+    memset(memo->dists[i], 0xFF, subsets * sizeof(int64_t));
+
   memo->last_cities =
       (uint8_t **)create_heap_table(cities->len, subsets, sizeof(uint8_t));
 
@@ -200,15 +205,43 @@ static int create_memo(DynamicArray_t(Str_t) * cities, Memo_t *memo) {
     return 0;
   }
 
-  memo->cities = cities->len;
+  memo->city_cnt = cities->len;
 
   return 1;
 }
 
 static void free_memo(Memo_t *memo) {
-  free_heap_table(memo->cities, (void **)memo->dists);
-  free_heap_table(memo->cities, (void **)memo->last_cities);
+  free_heap_table(memo->city_cnt, (void **)memo->dists);
+  free_heap_table(memo->city_cnt, (void **)memo->last_cities);
   memset(memo, 0, sizeof(Memo_t));
+}
+
+int count_ones(int64_t x) {
+  int res = 0;
+  for (int i = 0; i < 64; i++)
+    res += (x & (1 << i)) ? 1 : 0;
+
+  return res;
+}
+
+int64_t min_distance(int64_t visited, int current, DistanceMatrix_t costs,
+                     int cities) {
+  if (count_ones(visited) == cities)
+    return 0;
+
+  int64_t min = INT64_MAX;
+  for (int i = 0; i < cities; i++) {
+    // if we haven't visited the city already
+    if ((visited & (1 << i)) == 0) {
+      int64_t new_distance =
+          min_distance(visited | (1 << i), i, costs, cities) +
+          costs[i][current];
+      if (new_distance < min)
+        min = new_distance;
+    }
+  }
+
+  return min;
 }
 
 int main(int argc, const char **argv) {
@@ -258,6 +291,9 @@ int main(int argc, const char **argv) {
     free((char *)file_data.s);
     return 1;
   }
+
+  int64_t min = min_distance(0, 0, costs, cities.len);
+  printf("Distance is : %" PRId64 "\n", min);
 
   free_heap_table(cities.len, (void **)costs);
   free_memo(&memo);

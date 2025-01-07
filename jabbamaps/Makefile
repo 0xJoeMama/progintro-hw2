@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-m32 -Ofast -Wall -Wextra -Werror -pedantic -std=c99
+CFLAGS=-Ofast -Wall -Wextra -Werror -pedantic -std=c99
 BINS=jabbamaps
 
 all: $(BINS)
