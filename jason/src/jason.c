@@ -48,36 +48,6 @@ struct TaggedJsonValue {
 HM_IMPL(String_t, TaggedJsonValue_t)
 DA_IMPL(TaggedJsonValue_t)
 
-int ss_advance_once(Str_t *s) {
-  if (s->len == 0)
-    return -1;
-
-  s->len--;
-  return *s->s++;
-}
-
-int ss_starts_with(Str_t s1, Str_t s2) {
-  if (s1.len < s2.len)
-    return 0;
-
-  while (s2.len > 0)
-    if (ss_advance_once(&s2) != ss_advance_once(&s1))
-      return 0;
-
-  return 1;
-}
-
-Str_t ss_advance(Str_t *s, size_t adv) {
-  if (s->len < adv)
-    return (Str_t){.len = 0, .s = NULL};
-
-  Str_t res = {.len = adv, .s = s->s};
-  s->s += adv;
-  s->len -= adv;
-
-  return res;
-}
-
 void json_deinit(TaggedJsonValue_t value);
 
 void json_object_kv_deinit(KVPair_t(String_t, TaggedJsonValue_t) entry) {
@@ -227,7 +197,6 @@ int json_parse_number(Str_t *s, TaggedJsonValue_t *el) {
   el->el.number = res;
 
   free(null_terminated_buffer);
-
   return 1;
 }
 
@@ -374,7 +343,8 @@ int json_parse_object(Str_t *s, TaggedJsonValue_t *value) {
       break;
     }
 
-    if (!hm_put(String_t, TaggedJsonValue_t)(result, key.el.string, new_value)) {
+    if (!hm_put(String_t, TaggedJsonValue_t)(result, key.el.string,
+                                             new_value)) {
       s_deinit(&key.el.string);
       break;
     }
