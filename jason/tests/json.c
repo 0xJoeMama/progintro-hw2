@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <stdio.h>
 
 #define JSON_TESTS
 #include "../src/jason.c"
@@ -60,7 +61,6 @@ void test_array() {
          "could not parse json string");
   assert(json.type == JSON_ARRAY && "not a array?!");
   assert(json.el.array.len == 6 && "bad array length");
-  da_deinit(TaggedJsonValue_t)(&json.el.array, NULL);
   json_deinit(json);
 }
 
@@ -76,6 +76,19 @@ void test_object() {
   json_deinit(json);
 }
 
+void test_unicode() {
+  TaggedJsonValue_t json;
+  const char *json_data = "\"\\u00a3\"";
+  Str_t json_data_slice = ss_from_cstring(json_data);
+  assert(json_parse(json_data_slice, &json) == 1 &&
+         "could not parse json string");
+  assert(json.type == JSON_STRING && "not a string?!");
+  assert(json.el.string.len == 2);
+  assert(json.el.string.buf[0] == 0);
+  assert(json.el.string.buf[1] == (char)0xA3);
+  json_deinit(json);
+}
+
 int main(void) {
   test_string();
   test_number();
@@ -83,5 +96,6 @@ int main(void) {
   test_null();
   test_array();
   test_object();
+  test_unicode();
   return 0;
 }

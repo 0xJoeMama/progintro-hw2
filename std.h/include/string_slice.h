@@ -20,7 +20,7 @@ Str_t ss_trim(Str_t s);
 Str_t ss_subslice(Str_t s, size_t start_inc, size_t end_exc);
 Str_t ss_split_once(Str_t *s, char c);
 
-int ss_advance_once(Str_t *s);
+char ss_advance_once(Str_t *s);
 Str_t ss_advance(Str_t *s, size_t adv);
 int ss_starts_with(Str_t s1, Str_t s2);
 void ss_print(FILE* file, Str_t s);
@@ -128,12 +128,12 @@ Str_t ss_split_once(Str_t *s, char c) {
   return res;
 }
 
-int ss_advance_once(Str_t *s) {
+char ss_advance_once(Str_t *s) {
   if (s->len == 0)
-    return -1;
+    return 0;
 
   s->len--;
-  return *s->s++;
+  return *(s->s++);
 }
 
 int ss_starts_with(Str_t s1, Str_t s2) {

@@ -1,5 +1,3 @@
-#include <assert.h>
-#include <ctype.h>
 #include <errno.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -77,9 +75,9 @@ void json_deinit(TaggedJsonValue_t value) {
 }
 
 int handle_escape_sequence(String_t *result, Str_t *s) {
-  char unicode_buf[5] = {0};
+  char unicode_buf[3] = {0};
   int escaped_char = ss_advance_once(s);
-  if (escaped_char < 0)
+  if (!escaped_char)
     return 0;
 
   switch (escaped_char) {
@@ -98,33 +96,32 @@ int handle_escape_sequence(String_t *result, Str_t *s) {
   case 't':
     return s_push(result, '\t');
   case 'u':
-    for (int i = 0; i < 4; i++) {
-      int next_char = ss_advance_once(s);
-      if (next_char < 0)
+    for (int i = 0; i < 2; i++) {
+      // read two characters
+      for (int j = 0; j < 2; j++) {
+        int next_char = ss_advance_once(s);
+        if (!next_char)
+          return 0;
+
+        // if any of the digits isn't a hex digit, we fail
+        if (!isxdigit(next_char))
+          return 0;
+
+        unicode_buf[j] = next_char;
+      }
+
+      unicode_buf[2] = '\0';
+
+      char *end;
+      errno = 0;
+      int res = strtoul(unicode_buf, &end, 16);
+
+      if (end == unicode_buf || errno)
         return 0;
 
-      // if any of the digits isn't a hex digit, we fail
-      if (!isxdigit(next_char))
+      if (!s_push(result, res))
         return 0;
-
-      unicode_buf[i] = next_char;
     }
-
-    // increment by the amount of characters we just read
-    unicode_buf[4] = '\0';
-    char *end;
-    errno = 0;
-    // out number has 4 digits meaning at most 16 binary digits
-    // so we just need to split the first 8 and the last 8 bits
-    int res = strtol(unicode_buf, &end, 16);
-    if (unicode_buf == end || errno)
-      return 0;
-
-    if (!s_push(result, (char)res >> 8))
-      return 0;
-
-    if (!s_push(result, (char)res & 0xFF))
-      return 0;
     return 1;
   default:
     return 0;
@@ -134,7 +131,7 @@ int handle_escape_sequence(String_t *result, Str_t *s) {
 int json_parse_string(Str_t *s, TaggedJsonValue_t *el) {
   *s = ss_trim_left(*s);
 
-  if (*s->s != '"' || s->len == 0)
+  if (s->len == 0 || *s->s != '"')
     return 0;
 
   String_t *result = &el->el.string;
@@ -144,12 +141,11 @@ int json_parse_string(Str_t *s, TaggedJsonValue_t *el) {
     return 0;
 
   // skip the " character
+  // won't fail
   ss_advance_once(s);
-
   while (s->len > 0) {
+    // won't fail
     int next_char = ss_advance_once(s);
-    if (next_char < 0)
-      break;
 
     switch (next_char) {
       // end of string
@@ -249,7 +245,7 @@ int json_parse_array(Str_t *s, TaggedJsonValue_t *value) {
     *s = ss_trim_left(*s);
     // end of array
     if (*s->s == ']') {
-      if (ss_advance_once(s) < 0)
+      if (!ss_advance_once(s))
         break;
 
       // only successfull case
@@ -270,7 +266,7 @@ int json_parse_array(Str_t *s, TaggedJsonValue_t *value) {
     // that this is *NOT* standard JSON
     if (*s->s == ',') {
       // trash the comma
-      if (ss_advance_once(s) < 0)
+      if (!ss_advance_once(s))
         break;
       // otherwise, if the next character is not a closing bracket, we have
       // failed
@@ -289,7 +285,7 @@ uint64_t s_hash(String_t *s) {
   Str_t s_slice = s_str(s);
   int c;
 
-  while ((c = ss_advance_once(&s_slice)) >= 0)
+  while ((c = ss_advance_once(&s_slice)))
     hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
 
   return hash;
@@ -326,6 +322,7 @@ int json_parse_object(Str_t *s, TaggedJsonValue_t *value) {
       return 1;
     }
 
+    // TODO: error cases here?
     TaggedJsonValue_t key;
     json_parse_string(s, &key);
     if (key.type != JSON_STRING)
@@ -357,7 +354,7 @@ int json_parse_object(Str_t *s, TaggedJsonValue_t *value) {
     // that this is *NOT* standard JSON
     if (*s->s == ',') {
       // trash the comma
-      if (ss_advance_once(s) < 0)
+      if (!ss_advance_once(s))
         break;
       // otherwise, if the next character is not a closing bracket, we have
       // failed
@@ -393,19 +390,20 @@ int json_parse_value(Str_t *s, TaggedJsonValue_t *value) {
 }
 
 int json_parse(Str_t s, TaggedJsonValue_t *value) {
+  s = ss_trim(s);
   if (!json_parse_value(&s, value))
     return 0;
 
-  s = ss_trim(s);
   return s.len == 0;
 }
 
-int print_usage(const char *prog) {
+#ifndef JSON_TESTS
+static int print_usage(const char *prog) {
   fprintf(stderr, "Usage: %s [--extract <filename> | --bot]\n", prog);
   return 1;
 }
 
-int extract_file(const char *filename, TaggedJsonValue_t *value) {
+static int parse_json_file(const char *filename, TaggedJsonValue_t *value) {
   FILE *file = fopen(filename, "r");
   if (!file) {
     perror("could not open extraction file");
@@ -447,7 +445,155 @@ int extract_file(const char *filename, TaggedJsonValue_t *value) {
   return 1;
 }
 
-#ifndef JSON_TESTS
+// this returns into res_s a pointer tied to the value owned by json. Therefore,
+// if json is deinit'ed the res_s string slice is invalid
+int extract_content(TaggedJsonValue_t *json, Str_t *res_s) {
+  if (json->type != JSON_OBJECT)
+    return 0;
+
+  String_t key;
+  if (!s_init(&key, 7))
+    return 0;
+
+  if (!s_push_cstr(&key, "choices")) {
+    s_deinit(&key);
+    return 0;
+  }
+
+  TaggedJsonValue_t *choices =
+      hm_get(String_t, TaggedJsonValue_t)(&json->el.object, &key);
+  if (!choices || choices->type != JSON_ARRAY) {
+    s_deinit(&key);
+    return 0;
+  }
+
+  TaggedJsonValue_t *choices_0 =
+      da_get(TaggedJsonValue_t)(&choices->el.array, 0);
+
+  key.len = 0;
+  if (!s_push_cstr(&key, "message")) {
+    s_deinit(&key);
+    return 0;
+  }
+
+  TaggedJsonValue_t *message =
+      hm_get(String_t, TaggedJsonValue_t)(&choices_0->el.object, &key);
+
+  if (!message) {
+    s_deinit(&key);
+    return 0;
+  }
+
+  key.len = 0;
+  if (!s_push_cstr(&key, "content")) {
+    s_deinit(&key);
+    return 0;
+  }
+
+  TaggedJsonValue_t *content =
+      hm_get(String_t, TaggedJsonValue_t)(&message->el.object, &key);
+  if (!content || content->type != JSON_STRING) {
+    s_deinit(&key);
+    return 0;
+  }
+
+  s_deinit(&key);
+  *res_s = s_str(&content->el.string);
+
+  return 1;
+}
+
+static int read_stdin_line(String_t *line) {
+  // TODO: make this a clear function
+  line->len = 0;
+
+  int c;
+  while ((c = getchar()) != EOF && c != '\n')
+    if (!s_push(line, c))
+      return 0;
+
+  if (c == EOF)
+    return EOF;
+
+  return 1;
+}
+
+static int handle_api_response(const char *resp) {
+  Str_t resp_as_str = ss_from_cstring(resp);
+
+  TaggedJsonValue_t json;
+  if (!json_parse(resp_as_str, &json))
+    return 0;
+
+  Str_t result;
+  if (!extract_content(&json, &result)) {
+    json_deinit(json);
+    return 0;
+  }
+
+  ss_print(stdout, result);
+  printf("\n");
+  fflush(stdout);
+
+  json_deinit(json);
+
+  return 1;
+}
+
+static int converse() {
+  neurosym_init();
+
+  String_t s;
+  if (!s_init(&s, 16))
+    return 1;
+
+  int last_res;
+  printf("> What would you like to know? ");
+  while ((last_res = read_stdin_line(&s)) == 1) {
+    // assume s needs to be null terminated (C moment)
+    if (!s_push(&s, '\0')) {
+      last_res = 0;
+      break;
+    }
+
+    char *resp = response(s.buf);
+    if (!resp || !handle_api_response(resp)) {
+      last_res = 0;
+      break;
+    }
+
+    // response requires we free the buffer
+    free(resp);
+    printf("> What would you like to know? ");
+  }
+
+  printf("\n");
+  s_deinit(&s);
+  return last_res != EOF;
+}
+
+static int extract(const char *filename) {
+  TaggedJsonValue_t value;
+
+  if (!parse_json_file(filename, &value))
+    return 1;
+
+  Str_t content_data;
+  if (!extract_content(&value, &content_data)) {
+    json_deinit(value);
+    return 1;
+  }
+
+  for (size_t i = 0; i < content_data.len; i++)
+    putchar(content_data.s[i]);
+
+  printf("\n");
+  fflush(stdout);
+
+  json_deinit(value);
+  return 0;
+}
+
 int main(int argc, const char **argv) {
   if (argc < 2 || argc > 3)
     return print_usage(argv[0]);
@@ -455,74 +601,15 @@ int main(int argc, const char **argv) {
   if (strcmp(argv[1], "--extract") == 0) {
     if (argc != 3)
       return print_usage(argv[0]);
-
-    TaggedJsonValue_t value;
-
-    // TODO: cleanup json on failure cases
-    if (!extract_file(argv[2], &value))
-      return 1;
-
-    if (value.type != JSON_OBJECT)
-      return 1;
-    String_t key;
-    if (!s_init(&key, 7))
-      return 1;
-    s_push_cstr(&key, "choices");
-
-    TaggedJsonValue_t *choices =
-        hm_get(String_t, TaggedJsonValue_t)(&value.el.object, &key);
-    if (!choices || choices->type != JSON_ARRAY) {
-      json_deinit(value);
-      return 1;
-    }
-
-    key.len = 0;
-    if (!s_push_cstr(&key, "message")) {
-      json_deinit(value);
-      return 1;
-    }
-
-    TaggedJsonValue_t *choices_0 =
-        da_get(TaggedJsonValue_t)(&choices->el.array, 0);
-
-    TaggedJsonValue_t *message =
-        hm_get(String_t, TaggedJsonValue_t)(&choices_0->el.object, &key);
-
-    if (!message) {
-      json_deinit(value);
-      return 1;
-    }
-
-    key.len = 0;
-    if (!s_push_cstr(&key, "content")) {
-      json_deinit(value);
-      return 1;
-    }
-
-    TaggedJsonValue_t *content =
-        hm_get(String_t, TaggedJsonValue_t)(&message->el.object, &key);
-    if (!content || content->type != JSON_STRING) {
-      json_deinit(value);
-      return 1;
-    }
-
-    String_t content_data = content->el.string;
-
-    for (size_t i = 0; i < content_data.len; i++)
-      putchar(content_data.buf[i]);
-
-    fflush(stdout);
-
-    s_deinit(&key);
-    json_deinit(value);
+    return extract(argv[2]);
   } else if (strcmp(argv[1], "--bot") == 0) {
-    neurosym_init();
-    assert(0 && "not implemented yet");
+    if (argc != 2)
+      return print_usage(argv[0]);
+
+    return converse();
   } else {
     fprintf(stderr, "invalid option %s\n", argv[1]);
     return 1;
   }
-
-  return 0;
 }
 #endif
