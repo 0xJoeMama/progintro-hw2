@@ -435,6 +435,7 @@ static int parse_json_file(const char *filename, TaggedJsonValue_t *value) {
     };
 
     if (!json_parse(json_data, value)) {
+      fprintf(stderr, "Not an accepted JSON!\n");
       free(buf);
       return 0;
     }
@@ -522,12 +523,15 @@ static int handle_api_response(const char *resp) {
   Str_t resp_as_str = ss_from_cstring(resp);
 
   TaggedJsonValue_t json;
-  if (!json_parse(resp_as_str, &json))
+  if (!json_parse(resp_as_str, &json)) {
+    fprintf(stderr, "invalid json\n");
     return 0;
+  }
 
   Str_t result;
   if (!extract_content(&json, &result)) {
     json_deinit(json);
+    fprintf(stderr, "could not locate target field in json\n");
     return 0;
   }
 
