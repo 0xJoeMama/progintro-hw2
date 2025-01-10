@@ -1,4 +1,0 @@
-[submodule "std.h"]
-	path = std.h
-	url = git@github.com:0xJoeMama/std.h.git
-  fetchRecurseSubmodules = true

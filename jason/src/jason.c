@@ -12,6 +12,8 @@
 
 #include "../../std.h/include/hash_map.h"
 
+#include "neurolib.h"
+
 typedef enum {
   JSON_NULL,
   JSON_STRING,
@@ -513,8 +515,12 @@ int main(int argc, const char **argv) {
 
     s_deinit(&key);
     json_deinit(value);
-  } else {
+  } else if (strcmp(argv[1], "--bot") == 0) {
+    neurosym_init();
     assert(0 && "not implemented yet");
+  } else {
+    fprintf(stderr, "invalid option %s\n", argv[1]);
+    return 1;
   }
 
   return 0;
