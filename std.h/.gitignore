@@ -1,0 +1,9 @@
+string_tests
+string_slice_tests
+hash_map_tests
+dynamic_array_tests
+bitset_tests
+allocator_tests
+compile_commands.json
+otherfile.o
+.cache/
