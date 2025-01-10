@@ -1,5 +1,4 @@
 #include <assert.h>
-#include <stdio.h>
 
 #define JSON_TESTS
 #include "../src/jason.c"
