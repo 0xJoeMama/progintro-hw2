@@ -21,6 +21,7 @@ typedef int32_t **DistanceMatrix_t;
 // versions of dynamic array that are used
 DA_DECLARE_IMPL(Str_t)
 DA_DECLARE_IMPL(int64_t)
+DA_DECLARE_IMPL(DynamicArray_t(int64_t))
 DA_DECLARE_IMPL(int)
 DA_DECLARE_IMPL(CityEntry_t)
 
@@ -201,60 +202,81 @@ static void free_memo(Memo_t *memo) {
 // check if the bit-th bit is set on the bitset bs
 #define is_set(bs, bit) (bs & (1 << bit))
 
-// TODO: make this use a dynamic array of size 2^N to cache all the results
-// This would mean arr[0] == { 0 };
-// arr[1] = { 0b1, 0b01, ... };
-// arr[2] = { 0b11, 0b101, ... };
-// aka arr[N] would be the subsets of n bits with N set bits
-int generate_combinations(DynamicArray_t(int64_t) * combs, int n, int k) {
-  // clear the array
-  combs->len = 0;
-  for (int64_t i = 0; i < (1 << n); i++)
-    // TODO: don't use a builtin here
-    if (__builtin_popcount(i) == k)
-      if (!da_push(int64_t)(combs, i))
-        return 0;
+static void int64_arr_destroy(DynamicArray_t(int64_t) arr) {
+  da_deinit(int64_t)(&arr, NULL);
+}
+
+int generate_combination_matrix(DynamicArray_t(DynamicArray_t(int64_t)) * combs,
+                                int n) {
+  if (!da_init(DynamicArray_t(int64_t))(combs, n + 1))
+    return 0;
+
+  int64_t nchoosek = 1;
+  for (int k = 0; k <= n; k++) {
+    DynamicArray_t(int64_t) current;
+    if (!da_init(int64_t)(&current, nchoosek)) {
+      da_deinit(DynamicArray_t(int64_t))(combs, int64_arr_destroy);
+      return 0;
+    }
+
+    if (!da_push(DynamicArray_t(int64_t))(combs, current)) {
+      int64_arr_destroy(current);
+      da_deinit(DynamicArray_t(int64_t))(combs, int64_arr_destroy);
+      return 0;
+    }
+
+    nchoosek = (nchoosek * (n - k)) / (k + 1);
+  }
+
+  for (int64_t i = 0; i < (1 << n); i++) {
+    int ones = __builtin_popcount(i);
+
+    DynamicArray_t(int64_t) *bucket = &combs->buf[ones];
+
+    if (!da_push(int64_t)(bucket, i)) {
+      da_deinit(DynamicArray_t(int64_t))(combs, int64_arr_destroy);
+      return 0;
+    }
+  }
 
   return 1;
 }
 
 // populate memo with the solutions to tsp using the cost as the
 // adjacency matrix
-int tsp(DistanceMatrix_t cost, Memo_t *memo) {
+int held_karp_tsp(DistanceMatrix_t cost, Memo_t *memo) {
   // initialize 2 element subsets
   for (int i = 1; i < memo->city_cnt; i++)
     memo->dists[i][(1 | (1 << i))] = cost[0][i];
 
-  DynamicArray_t(int64_t) combs;
-  if (!da_init(int64_t)(&combs, 1 << memo->city_cnt))
-    return -1;
+  DynamicArray_t(DynamicArray_t(int64_t)) combs;
+  if (!generate_combination_matrix(&combs, memo->city_cnt))
+    return 0;
 
   // for all subsets with 3 or more elements
   for (int i = 3; i <= memo->city_cnt; i++) {
-    // find the combinations for that amount of elements
-    if (!generate_combinations(&combs, memo->city_cnt, i)) {
-      fprintf(stderr, "failed to allocate memory for combinations buffer\n");
-      da_deinit(int64_t)(&combs, NULL);
-      return 0;
-    }
-
-    // for all combinations
-    for (size_t j = 0; j < combs.len; j++) {
-      int64_t subset = combs.buf[j];
+    DynamicArray_t(int64_t) *current_bucket = &combs.buf[i];
+    for (size_t j = 0; j < current_bucket->len; j++) {
+      int64_t subset = current_bucket->buf[j];
       // if the last city is set(meaning it's the beginning), skip it
       if ((subset & 1) == 0)
         continue;
 
       // otherwise
       // for all cities
-      for (int next_node = 0; next_node < memo->city_cnt; next_node++) {
+      for (register int next_node = 0; next_node < memo->city_cnt;
+           next_node++) {
         // toggle the next-th bit of subset aka remove next from the subset
         int64_t state = subset ^ (1 << next_node);
         // find minimum
         // inf placeholder
         int64_t min = INT64_MAX;
-        for (int end_node = 1; end_node < memo->city_cnt; end_node++) {
-          if (end_node == next_node || !is_set(subset, end_node))
+        for (register int end_node = 1; end_node < memo->city_cnt; end_node++) {
+          // separating these conditions allows for smart stuff to happen
+          if (!(end_node ^ next_node))
+            continue;
+
+          if (!is_set(subset, end_node))
             continue;
 
           int64_t new_dist =
@@ -271,7 +293,7 @@ int tsp(DistanceMatrix_t cost, Memo_t *memo) {
   }
 
   // delete the combinations array
-  da_deinit(int64_t)(&combs, NULL);
+  da_deinit(DynamicArray_t(int64_t))(&combs, int64_arr_destroy);
 
   return 1;
 }
@@ -399,7 +421,7 @@ int main(int argc, const char **argv) {
     return 1;
   }
 
-  if (!tsp(costs, &memo)) {
+  if (!held_karp_tsp(costs, &memo)) {
     // cleanup
     free_heap_table(cities.len, (void **)costs);
     free((char *)file_data.s);
