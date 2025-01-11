@@ -48,6 +48,29 @@ struct TaggedJsonValue {
 HM_IMPL(String_t, TaggedJsonValue_t)
 DA_IMPL(TaggedJsonValue_t)
 
+// djb2 hashing algorithm
+uint64_t s_hash(String_t *s) {
+  uint64_t hash = 5381;
+  Str_t s_slice = s_str(s);
+  int c;
+
+  while ((c = ss_advance_once(&s_slice)))
+    hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
+
+  return hash;
+}
+
+int s_eq(String_t *a, String_t *b) {
+  if (a->len != b->len)
+    return 0;
+
+  for (size_t i = 0; i < a->len; i++)
+    if (a->buf[i] != b->buf[i])
+      return 0;
+
+  return 1;
+}
+
 void json_deinit(TaggedJsonValue_t value);
 
 void json_object_kv_deinit(KVPair_t(String_t, TaggedJsonValue_t) entry) {
@@ -144,7 +167,7 @@ int json_parse_string(Str_t *s, TaggedJsonValue_t *el) {
   // won't fail
   ss_advance_once(s);
   while (s->len > 0) {
-    // won't fail
+    // won't fail becasue len is at least 1
     int next_char = ss_advance_once(s);
 
     switch (next_char) {
@@ -272,29 +295,6 @@ int json_parse_array(Str_t *s, TaggedJsonValue_t *value) {
   return 0;
 }
 
-// djb2 hashing algorithm
-uint64_t s_hash(String_t *s) {
-  uint64_t hash = 5381;
-  Str_t s_slice = s_str(s);
-  int c;
-
-  while ((c = ss_advance_once(&s_slice)))
-    hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
-
-  return hash;
-}
-
-int s_eq(String_t *a, String_t *b) {
-  if (a->len != b->len)
-    return 0;
-
-  for (size_t i = 0; i < a->len; i++)
-    if (a->buf[i] != b->buf[i])
-      return 0;
-
-  return 1;
-}
-
 int json_parse_object(Str_t *s, TaggedJsonValue_t *value) {
   *s = ss_trim_left(*s);
   if (s->len == 0 || *s->s != '{')
@@ -315,10 +315,8 @@ int json_parse_object(Str_t *s, TaggedJsonValue_t *value) {
       return 1;
     }
 
-    // TODO: error cases here?
     TaggedJsonValue_t key;
-    json_parse_string(s, &key);
-    if (key.type != JSON_STRING)
+    if (!json_parse_string(s, &key) || key.type != JSON_STRING)
       break;
 
     *s = ss_trim_left(*s);
@@ -387,6 +385,7 @@ int json_parse(Str_t s, TaggedJsonValue_t *value) {
   if (!json_parse_value(&s, value))
     return 0;
 
+  s = ss_trim(s);
   return s.len == 0;
 }
 
@@ -426,7 +425,7 @@ static int parse_json_file(const char *filename, TaggedJsonValue_t *value) {
     if (ferror(file))
       perror("error while reading input file");
     else if (feof(file))
-      fprintf(stderr, "could not read whole file because eof was encountered");
+      fprintf(stderr, "could not read whole file because eof was encountered\n");
 
     if (fclose(file) != 0)
       perror("could not close extraction file");
@@ -458,12 +457,12 @@ static int parse_json_file(const char *filename, TaggedJsonValue_t *value) {
 
 // this returns into res_s a pointer tied to the value owned by json. Therefore,
 // if json is deinit'ed the res_s string slice is invalid
-int extract_content(TaggedJsonValue_t *json, Str_t *res_s) {
+static int extract_content_field(TaggedJsonValue_t *json, Str_t *res_s) {
   if (json->type != JSON_OBJECT)
     return 0;
 
   String_t key;
-  if (!s_init(&key, 7))
+  if (!s_init(&key, 10))
     return 0;
 
   if (!s_push_cstr(&key, "choices")) {
@@ -482,7 +481,7 @@ int extract_content(TaggedJsonValue_t *json, Str_t *res_s) {
       da_get(TaggedJsonValue_t)(&choices->el.array, 0);
 
   s_clear(&key);
-  if (!s_push_cstr(&key, "message")) {
+  if (!choices_0 || !s_push_cstr(&key, "message")) {
     s_deinit(&key);
     return 0;
   }
@@ -490,13 +489,8 @@ int extract_content(TaggedJsonValue_t *json, Str_t *res_s) {
   TaggedJsonValue_t *message =
       hm_get(String_t, TaggedJsonValue_t)(&choices_0->el.object, &key);
 
-  if (!message) {
-    s_deinit(&key);
-    return 0;
-  }
-
   s_clear(&key);
-  if (!s_push_cstr(&key, "content")) {
+  if (!message || !s_push_cstr(&key, "content")) {
     s_deinit(&key);
     return 0;
   }
@@ -509,6 +503,9 @@ int extract_content(TaggedJsonValue_t *json, Str_t *res_s) {
   }
 
   s_deinit(&key);
+
+  // the lifetime of res_s is tied to content and since content is part of the
+  // json res_s is actually tied to the json
   *res_s = s_str(&content->el.string);
 
   return 1;
@@ -538,7 +535,7 @@ static int handle_api_response(const char *resp) {
   }
 
   Str_t result;
-  if (!extract_content(&json, &result)) {
+  if (!extract_content_field(&json, &result)) {
     json_deinit(json);
     fprintf(stderr, "could not locate target field in json\n");
     return 0;
@@ -592,7 +589,7 @@ static int extract(const char *filename) {
     return 1;
 
   Str_t content_data;
-  if (!extract_content(&value, &content_data)) {
+  if (!extract_content_field(&value, &content_data)) {
     json_deinit(value);
     return 1;
   }
