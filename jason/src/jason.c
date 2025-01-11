@@ -395,6 +395,8 @@ static int print_usage(const char *prog) {
   return 1;
 }
 
+// parse the content of the file given by filename into value
+// Upon success, the caller is responsible for deiniting value
 static int parse_json_file(const char *filename, TaggedJsonValue_t *value) {
   FILE *file = fopen(filename, "r");
   if (!file) {
@@ -425,7 +427,8 @@ static int parse_json_file(const char *filename, TaggedJsonValue_t *value) {
     if (ferror(file))
       perror("error while reading input file");
     else if (feof(file))
-      fprintf(stderr, "could not read whole file because eof was encountered\n");
+      fprintf(stderr,
+              "could not read whole file because eof was encountered\n");
 
     if (fclose(file) != 0)
       perror("could not close extraction file");
@@ -458,6 +461,7 @@ static int parse_json_file(const char *filename, TaggedJsonValue_t *value) {
 // this returns into res_s a pointer tied to the value owned by json. Therefore,
 // if json is deinit'ed the res_s string slice is invalid
 static int extract_content_field(TaggedJsonValue_t *json, Str_t *res_s) {
+  // top level value must be an object
   if (json->type != JSON_OBJECT)
     return 0;
 
@@ -470,6 +474,7 @@ static int extract_content_field(TaggedJsonValue_t *json, Str_t *res_s) {
     return 0;
   }
 
+  // that contains a choices array
   TaggedJsonValue_t *choices =
       hm_get(String_t, TaggedJsonValue_t)(&json->el.object, &key);
   if (!choices || choices->type != JSON_ARRAY) {
@@ -477,10 +482,12 @@ static int extract_content_field(TaggedJsonValue_t *json, Str_t *res_s) {
     return 0;
   }
 
+  // with at least one element
   TaggedJsonValue_t *choices_0 =
       da_get(TaggedJsonValue_t)(&choices->el.array, 0);
 
   s_clear(&key);
+  // which in turn contains a message object
   if (!choices_0 || !s_push_cstr(&key, "message")) {
     s_deinit(&key);
     return 0;
@@ -490,6 +497,7 @@ static int extract_content_field(TaggedJsonValue_t *json, Str_t *res_s) {
       hm_get(String_t, TaggedJsonValue_t)(&choices_0->el.object, &key);
 
   s_clear(&key);
+  // which finally has a content string in it
   if (!message || !s_push_cstr(&key, "content")) {
     s_deinit(&key);
     return 0;
@@ -515,17 +523,21 @@ static int read_stdin_line(String_t *line) {
   s_clear(line);
 
   int c;
+  // push characters until eof is found
   while ((c = getchar()) != EOF && c != '\n')
     if (!s_push(line, c))
       return 0;
 
+  // we found eof, we need to notice the caller
   if (c == EOF)
     return EOF;
 
+  // if we found a newline, we can just say we succeded
   return 1;
 }
 
 static int handle_api_response(const char *resp) {
+  // read resp as a null-terminated string slice
   Str_t resp_as_str = ss_from_cstring(resp);
 
   TaggedJsonValue_t json;
@@ -535,16 +547,19 @@ static int handle_api_response(const char *resp) {
   }
 
   Str_t result;
+  // the result of extract content field is tied to the lifetime of json
   if (!extract_content_field(&json, &result)) {
     json_deinit(json);
     fprintf(stderr, "could not locate target field in json\n");
     return 0;
   }
 
+  // print message
   ss_print(stdout, result);
   printf("\n");
   fflush(stdout);
 
+  // cleanup json
   json_deinit(json);
 
   return 1;
