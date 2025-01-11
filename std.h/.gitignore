@@ -5,5 +5,6 @@ dynamic_array_tests
 bitset_tests
 allocator_tests
 compile_commands.json
+dynamic_array_tests.o
 otherfile.o
 .cache/

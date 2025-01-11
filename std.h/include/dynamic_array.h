@@ -33,6 +33,8 @@
   da_function(int, da_pop, type, struct DynamicArray(type) * da, type * dst);  \
   da_function(type *, da_get, type, struct DynamicArray(type) * da,            \
               size_t idx);                                                     \
+  da_function(void, da_clear, type, struct DynamicArray(type) * da,            \
+              void (*destroy)(type));                                          \
   typedef struct DynamicArray(type) DynamicArray_t(type);
 
 // TODO: ifdef for implementation code
@@ -124,6 +126,15 @@
     da_function_call(da_shrink, type)(da);                                     \
                                                                                \
     return 1;                                                                  \
+  }                                                                            \
+                                                                               \
+  da_function(void, da_clear, type, struct DynamicArray(type) * da,            \
+              void (*destroy)(type)) {                                         \
+    if (destroy)                                                               \
+      for (size_t i = 0; i < da->len; i++)                                     \
+        destroy(da->buf[i]);                                                   \
+                                                                               \
+    da->len = 0;                                                               \
   }
 
 #define DA_DECLARE_IMPL(type)                                                  \
@@ -134,6 +145,7 @@
 #define da_get(type) da_function_call(da_get_raw, type)
 #define da_push(type) da_function_call(da_push, type)
 #define da_pop(type) da_function_call(da_pop, type)
+#define da_clear(type) da_function_call(da_clear, type)
 #define da_deinit(type) da_function_call(da_deinit, type)
 
 #define DA_NEW_IMPL

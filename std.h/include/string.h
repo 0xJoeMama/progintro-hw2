@@ -36,6 +36,10 @@ Str_t s_str(String_t *s) {
 
 void s_deinit(String_t *s) { da_deinit_char(s, NULL); }
 
+void s_clear(String_t *s) {
+  // no need to call da_clear bc chars can't possible have a destructor
+  s->len = 0;
+}
 #else
 #include "string_slice.h"
 
@@ -44,6 +48,7 @@ typedef DynamicArray_t(char) String_t;
 
 int s_init(String_t *s, size_t initial_cap);
 int s_push(String_t *s, const char c);
+void s_clear(String_t *s);
 int s_push_str(String_t *s, Str_t src);
 int s_push_cstr(String_t *s, const char *src);
 Str_t s_str(String_t *s);

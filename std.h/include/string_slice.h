@@ -133,7 +133,7 @@ char ss_advance_once(Str_t *s) {
     return 0;
 
   s->len--;
-  return *(s->s++);
+  return *s->s++;
 }
 
 int ss_starts_with(Str_t s1, Str_t s2) {

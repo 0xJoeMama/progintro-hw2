@@ -173,28 +173,21 @@ int json_parse_string(Str_t *s, TaggedJsonValue_t *el) {
   return 0;
 }
 
+// s needs to be null terminated so this function to work properly
 int json_parse_number(Str_t *s, TaggedJsonValue_t *el) {
-  char *null_terminated_buffer = calloc(s->len + 1, sizeof(char));
-  if (!null_terminated_buffer)
-    return 0;
-
-  memcpy(null_terminated_buffer, s->s, s->len * sizeof(char));
-
+  // notice we can safely pass s->s into strtod because it is null terminated
   char *end;
   errno = 0;
-  double res = strtod(null_terminated_buffer, &end);
-  if (end == null_terminated_buffer || errno) {
-    free(null_terminated_buffer);
+  double res = strtod(s->s, &end);
+  if (end == s->s || errno)
     return 0;
-  }
 
-  size_t advance_bytes = end - null_terminated_buffer;
+  size_t advance_bytes = end - s->s;
   ss_advance(s, advance_bytes);
 
   el->type = JSON_NUMBER;
   el->el.number = res;
 
-  free(null_terminated_buffer);
   return 1;
 }
 
@@ -237,7 +230,7 @@ int json_parse_array(Str_t *s, TaggedJsonValue_t *value) {
     return 0;
 
   JsonArray_t *result = &value->el.array;
-  if (!da_init(TaggedJsonValue_t)(result, 16))
+  if (!da_init(TaggedJsonValue_t)(result, 8))
     return 0;
 
   ss_advance_once(s);
@@ -308,7 +301,7 @@ int json_parse_object(Str_t *s, TaggedJsonValue_t *value) {
     return 0;
 
   JsonObject_t *result = &value->el.object;
-  if (!hm_init(String_t, TaggedJsonValue_t)(result, 16, s_hash, s_eq))
+  if (!hm_init(String_t, TaggedJsonValue_t)(result, 8, s_hash, s_eq))
     return 0;
 
   ss_advance_once(s);
@@ -410,39 +403,56 @@ static int parse_json_file(const char *filename, TaggedJsonValue_t *value) {
     return 0;
   }
 
-  if (fseek(file, 0, SEEK_END) == 0) {
-    long file_sz = ftell(file);
-    rewind(file);
-
-    char *buf = calloc(file_sz, sizeof(char));
-    fread(buf, file_sz, 1, file);
-    if (ferror(file)) {
-      if (fclose(file) != 0) {
-        perror("could not close extraction file");
-        return 0;
-      }
-      return 0;
-    }
-
-    if (fclose(file) != 0) {
+  if (fseek(file, 0, SEEK_END) != 0) {
+    if (fclose(file) != 0)
       perror("could not close extraction file");
-      return 0;
-    }
-
-    Str_t json_data = {
-        .s = buf,
-        .len = file_sz,
-    };
-
-    if (!json_parse(json_data, value)) {
-      fprintf(stderr, "Not an accepted JSON!\n");
-      free(buf);
-      return 0;
-    }
-
-    free(buf);
+    return 0;
   }
 
+  long file_sz = ftell(file);
+  rewind(file);
+
+  // one extra for null
+  char *buf = calloc(file_sz + 1, sizeof(char));
+  if (!buf) {
+    if (fclose(file) != 0)
+      perror("could not close extraction file");
+
+    return 0;
+  }
+
+  long items_read = fread(buf, file_sz, 1, file);
+  if (items_read != 1) {
+    if (ferror(file))
+      perror("error while reading input file");
+    else if (feof(file))
+      fprintf(stderr, "could not read whole file because eof was encountered");
+
+    if (fclose(file) != 0)
+      perror("could not close extraction file");
+
+    printf("huh?");
+    free(buf);
+    return 0;
+  }
+
+  if (fclose(file) != 0) {
+    perror("could not close extraction file");
+    free(buf);
+    return 0;
+  }
+
+  Str_t json_data = ss_from_cstring(buf);
+
+  if (!json_parse(json_data, value)) {
+    fprintf(stderr, "Not an accepted JSON!\n");
+    free(buf);
+    return 0;
+  }
+
+  // this also nukes the json_data buffer
+  free(buf);
+  (void)json_data;
   return 1;
 }
 
@@ -471,7 +481,7 @@ int extract_content(TaggedJsonValue_t *json, Str_t *res_s) {
   TaggedJsonValue_t *choices_0 =
       da_get(TaggedJsonValue_t)(&choices->el.array, 0);
 
-  key.len = 0;
+  s_clear(&key);
   if (!s_push_cstr(&key, "message")) {
     s_deinit(&key);
     return 0;
@@ -485,7 +495,7 @@ int extract_content(TaggedJsonValue_t *json, Str_t *res_s) {
     return 0;
   }
 
-  key.len = 0;
+  s_clear(&key);
   if (!s_push_cstr(&key, "content")) {
     s_deinit(&key);
     return 0;
@@ -505,8 +515,7 @@ int extract_content(TaggedJsonValue_t *json, Str_t *res_s) {
 }
 
 static int read_stdin_line(String_t *line) {
-  // TODO: make this a clear function
-  line->len = 0;
+  s_clear(line);
 
   int c;
   while ((c = getchar()) != EOF && c != '\n')
@@ -571,7 +580,7 @@ static int converse() {
     printf("> What would you like to know? ");
   }
 
-  printf("\n");
+  printf("Terminating\n");
   s_deinit(&s);
   return last_res != EOF;
 }
@@ -605,6 +614,7 @@ int main(int argc, const char **argv) {
   if (strcmp(argv[1], "--extract") == 0) {
     if (argc != 3)
       return print_usage(argv[0]);
+
     return extract(argv[2]);
   } else if (strcmp(argv[1], "--bot") == 0) {
     if (argc != 2)

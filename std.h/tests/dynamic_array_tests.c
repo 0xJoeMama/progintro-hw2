@@ -33,15 +33,16 @@ int main(void) {
   for (int i = 0; i < 100; i++)
     da_push(int)(&da, i);
 
-  for (size_t i = 0; i < da.len; i++)
-    printf("%d\n", *da_get(int)(&da, i));
+  assert(da.len == 100 && "bad array length");
+  assert(da.cap == 160 && "bad array length");
 
-  printf("\nLength is : %zu, cap is : %zu\n", da.len, da.cap);
   int curr;
+  int end = 99;
   while (da_pop(int)(&da, &curr))
-    printf("%d ", curr);
+    assert(curr == end-- && "bad popped value");
 
-  printf("\nLength is : %zu, cap is : %zu\n", da.len, da.cap);
+  assert(da.len == 0 && "bad length after popping");
+  assert(da.cap == 1 && "bad capacity after and resizing");
 
   da_deinit(int)(&da, NULL);
 
@@ -70,6 +71,8 @@ int main(void) {
   for (size_t i = 0; i < sizeof(asd) / sizeof(char); i++)
     da_push(char)(&is_this_a_string, asd[i]);
 
+  da_clear(char)(&is_this_a_string, NULL);
+  assert(is_this_a_string.len == 0 && "bad clear function");
   da_deinit(char)(&is_this_a_string, NULL);
 
   return 0;
