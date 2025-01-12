@@ -58,7 +58,9 @@ static void free_heap_table(size_t rows, void **buf) {
   free(buf);
 }
 
-static int read_input(FILE *input, Str_t *out_buf) {
+// read the contents of input into a dynamically allocated buffer and return the
+// result in out_buf
+static int read_input(FILE *input, Str_t *out_s) {
   // go to the end
   // returns non-zero on failure
   if (fseek(input, 0, SEEK_END) != 0) {
@@ -84,8 +86,8 @@ static int read_input(FILE *input, Str_t *out_buf) {
     return 0;
   }
 
-  out_buf->s = data;
-  out_buf->len = file_sz;
+  out_s->s = data;
+  out_s->len = file_sz;
 
   return 1;
 }
@@ -97,6 +99,7 @@ static int find_city(Str_t niddle, DynamicArray_t(Str_t) * haystack) {
 
   return -1;
 }
+
 static int read_city_until(Str_t *line, char delim,
                            DynamicArray_t(Str_t) * cities) {
   Str_t city = ss_trim(ss_split_once(line, delim));
@@ -317,17 +320,16 @@ static int construct_tour(Memo_t *memo, DistanceMatrix_t costs,
 
   // start from the last city
   for (int i = memo->city_cnt - 1; i >= 1; i--) {
-    int idx = -1;
+    int idx = 1;
+    // start at first non-zero bit after the 0th bit
+    while (!is_set(state, idx))
+      idx++;
+
     // find the index that minimizes it's distance(our path is the minimum so we
     // always minimize distance)
-    for (int j = 1; j < memo->city_cnt; j++) {
+    for (int j = idx; j < memo->city_cnt; j++) {
       if (!is_set(state, j))
         continue;
-
-      if (idx < 0) {
-        idx = j;
-        continue;
-      }
 
       int64_t prev, new;
       if (last_idx < 0) {
@@ -344,7 +346,7 @@ static int construct_tour(Memo_t *memo, DistanceMatrix_t costs,
         idx = j;
     }
 
-    // add found city to toul
+    // add found city to tour
     if (!da_push(int)(tour, idx)) {
       da_deinit(int)(tour, NULL);
       return 0;
