@@ -1,3 +1,4 @@
+#include <ctype.h>
 #include <errno.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -169,6 +170,10 @@ int json_parse_string(Str_t *s, TaggedJsonValue_t *el) {
   while (s->len > 0) {
     // won't fail becasue len is at least 1
     int next_char = ss_advance_once(s);
+
+    // filter control characters
+    if (next_char >= 0 && next_char < ' ')
+      break;
 
     switch (next_char) {
       // end of string
