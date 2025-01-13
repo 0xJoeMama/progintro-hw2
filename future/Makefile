@@ -4,8 +4,7 @@ BINS=future
 
 all: $(BINS)
 
-%.o: src/%.c
-	$(CC) $(CFLAGS) -c -o $@ $^
+vpath %.c src
 
 clean:
 	rm -rf *.o $(BINS)
