@@ -152,13 +152,11 @@ int handle_escape_sequence(String_t *result, Str_t *s) {
   }
 }
 
-int json_parse_string(Str_t *s, TaggedJsonValue_t *el) {
+int json_parse_string(Str_t *s, String_t *result) {
   *s = ss_trim_left(*s);
 
   if (s->len == 0 || *s->s != '"')
     return 0;
-
-  String_t *result = &el->el.string;
 
   // TODO: maybe handle this using an enum to differentiate between errors
   if (!s_init(result, 16))
@@ -178,7 +176,6 @@ int json_parse_string(Str_t *s, TaggedJsonValue_t *el) {
     switch (next_char) {
       // end of string
     case '"':
-      el->type = JSON_STRING;
       return 1;
     case '\\':
       // if we can't properly handle the escape sequence, we have a skill issue
@@ -201,37 +198,32 @@ int json_parse_string(Str_t *s, TaggedJsonValue_t *el) {
   return 0;
 }
 
-// s needs to be null terminated so this function to work properly
-int json_parse_number(Str_t *s, TaggedJsonValue_t *el) {
-  // notice we can safely pass s->s into strtod because it is null terminated
+// s needs to be null terminated for this function to work properly
+int json_parse_number(Str_t *s, double *res) {
   char *end;
   errno = 0;
-  double res = strtod(s->s, &end);
+  // notice we can safely pass s->s into strtod because it is null terminated
+  *res = strtod(s->s, &end);
   if (end == s->s || errno)
     return 0;
 
   size_t advance_bytes = end - s->s;
   ss_advance(s, advance_bytes);
 
-  el->type = JSON_NUMBER;
-  el->el.number = res;
-
   return 1;
 }
 
-int json_parse_boolean(Str_t *s, TaggedJsonValue_t *value) {
+int json_parse_boolean(Str_t *s, bool *result) {
   *s = ss_trim_left(*s);
   Str_t true_string = ss_from_cstring("true");
   Str_t false_string = ss_from_cstring("false");
 
   if (ss_starts_with(*s, true_string)) {
-    value->type = JSON_BOOL;
-    value->el.boolean = true;
+    *result = true;
     ss_advance(s, true_string.len);
     return 1;
   } else if (ss_starts_with(*s, false_string)) {
-    value->type = JSON_BOOL;
-    value->el.boolean = false;
+    *result = false;
     ss_advance(s, false_string.len);
     return 1;
   } else {
@@ -239,25 +231,23 @@ int json_parse_boolean(Str_t *s, TaggedJsonValue_t *value) {
   }
 }
 
-int json_parse_null(Str_t *s, TaggedJsonValue_t *value) {
+int json_parse_null(Str_t *s) {
   *s = ss_trim_left(*s);
   Str_t null = ss_from_cstring("null");
   if (!ss_starts_with(*s, null))
     return 0;
 
   ss_advance(s, null.len);
-  value->type = JSON_NULL;
   return 1;
 }
 
 int json_parse_value(Str_t *s, TaggedJsonValue_t *value);
 
-int json_parse_array(Str_t *s, TaggedJsonValue_t *value) {
+int json_parse_array(Str_t *s, JsonArray_t *result) {
   *s = ss_trim_left(*s);
   if (s->len == 0 || *s->s != '[')
     return 0;
 
-  JsonArray_t *result = &value->el.array;
   if (!da_init(TaggedJsonValue_t)(result, 8))
     return 0;
 
@@ -270,7 +260,6 @@ int json_parse_array(Str_t *s, TaggedJsonValue_t *value) {
         break;
 
       // only successfull case
-      value->type = JSON_ARRAY;
       return 1;
     }
 
@@ -300,12 +289,11 @@ int json_parse_array(Str_t *s, TaggedJsonValue_t *value) {
   return 0;
 }
 
-int json_parse_object(Str_t *s, TaggedJsonValue_t *value) {
+int json_parse_object(Str_t *s, JsonObject_t *result) {
   *s = ss_trim_left(*s);
   if (s->len == 0 || *s->s != '{')
     return 0;
 
-  JsonObject_t *result = &value->el.object;
   if (!hm_init(String_t, TaggedJsonValue_t)(result, 8, s_hash, s_eq))
     return 0;
 
@@ -315,18 +303,17 @@ int json_parse_object(Str_t *s, TaggedJsonValue_t *value) {
     // end of array
     if (*s->s == '}') {
       ss_advance_once(s);
-      // only successfull case
-      value->type = JSON_OBJECT;
+      // only successful case
       return 1;
     }
 
-    TaggedJsonValue_t key;
-    if (!json_parse_string(s, &key) || key.type != JSON_STRING)
+    String_t key;
+    if (!json_parse_string(s, &key))
       break;
 
     *s = ss_trim_left(*s);
     if (ss_advance_once(s) != ':') {
-      s_deinit(&key.el.string);
+      s_deinit(&key);
       break;
     }
 
@@ -334,13 +321,12 @@ int json_parse_object(Str_t *s, TaggedJsonValue_t *value) {
 
     TaggedJsonValue_t new_value;
     if (!json_parse_value(s, &new_value)) {
-      s_deinit(&key.el.string);
+      s_deinit(&key);
       break;
     }
 
-    if (!hm_put(String_t, TaggedJsonValue_t)(result, key.el.string,
-                                             new_value)) {
-      s_deinit(&key.el.string);
+    if (!hm_put(String_t, TaggedJsonValue_t)(result, key, new_value)) {
+      s_deinit(&key);
       break;
     }
 
@@ -368,17 +354,23 @@ int json_parse_value(Str_t *s, TaggedJsonValue_t *value) {
 
   *s = ss_trim(*s);
 
-  if (json_parse_string(s, value)) {
+  if (json_parse_string(s, &value->el.string)) {
+    value->type = JSON_STRING;
     return 1;
-  } else if (json_parse_number(s, value)) {
+  } else if (json_parse_number(s, &value->el.number)) {
+    value->type = JSON_NUMBER;
     return 1;
-  } else if (json_parse_boolean(s, value)) {
+  } else if (json_parse_boolean(s, &value->el.boolean)) {
+    value->type = JSON_BOOL;
     return 1;
-  } else if (json_parse_null(s, value)) {
+  } else if (json_parse_null(s)) {
+    value->type = JSON_NULL;
     return 1;
-  } else if (json_parse_array(s, value)) {
+  } else if (json_parse_array(s, &value->el.array)) {
+    value->type = JSON_ARRAY;
     return 1;
-  } else if (json_parse_object(s, value)) {
+  } else if (json_parse_object(s, &value->el.object)) {
+    value->type = JSON_OBJECT;
     return 1;
   } else {
     return 0;
