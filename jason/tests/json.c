@@ -34,8 +34,7 @@ void test_string() {
   assert(json_parse(json_data_slice, &json) == 1 &&
          "could not parse json string");
   assert(json.type == JSON_STRING && "not a string ?!");
-  Str_t expect =
-      ss_from_cstring("hello good world \n \r \t              \f\" ");
+  Str_t expect = ss_from_cstring("hello good world \n \r \t              \f\" ");
   assert(ss_eq(expect, s_str(&json.el.string)) && "bad string");
   s_deinit(&json.el.string);
   json_deinit(json);
